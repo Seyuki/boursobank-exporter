@@ -12,7 +12,7 @@ pip install -r requirements.txt
 
 ## Configuration
 
-Des informations sont obligatoires au bon fonctionnement du script, notammennt l'identifiant client et le mot de passe de connexion à BoursoBank.
+Des informations sont obligatoires au bon fonctionnement du script, notamment l'identifiant client et le mot de passe de connexion à BoursoBank.
 
 Ces informations peuvent être directement passées en argument du script (voir ci-dessous) ou être renseignées dans un fichier d'environnement `.env`.
 
