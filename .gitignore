@@ -1,0 +1,12 @@
+# VS Code
+.vscode/
+
+# Python
+.env
+*.log
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Exports
+*.csv
