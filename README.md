@@ -23,7 +23,7 @@ BOURSOBANK_CLIENT_ID = '12345678'
 BOURSOBANK_PASSWORD = '87654321'
 BOURSOBANK_ACCOUNTS_ID = '111c22222b55555a11111c66666b8888'
 EXPORT_PATH = '~/exports_boursobank'
-LOG_PATH = '/var/logs/boursobank-expoorter'
+LOG_PATH = '/var/logs/boursobank-exporter'
 ```
 
 ### Explication des variables d'environnement
