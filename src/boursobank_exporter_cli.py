@@ -89,7 +89,7 @@ def validate_args() -> bool:
         logger.error("Au moins un numéro de compte doit être spécifié.")
         return False
     elif not re.match(r"^[\da-zA-Z,]+$", args.accounts_id):
-        logger.error("Les numéros de compte ne doivent contenir que des chiffres et des lettres.")
+        logger.error("Les numéros de comptes ne doivent contenir que des chiffres et des lettres.")
         return False
     elif args.from_date is None:
         logger.error("La date de début doit être spécifiée.")
