@@ -93,7 +93,7 @@ options:
 | --password         | BOURSOBANK_PASSWORD    | X             |
 | --accounts-id      | BOURSOBANK_ACCOUNTS_ID | X             |
 | --export-directory | EXPORT_PATH            |               |
-| --no-logs          | LOG_PATH               |               |
+| --no-logs          |                        |               |
 | --from             |                        | X             |
 | --to               |                        | X             |
 
