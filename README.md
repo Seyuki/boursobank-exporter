@@ -40,7 +40,9 @@ LOG_PATH = '/var/logs/boursobank-expoorter'
 > L'identifiant du compte pour la variable `BOURSOBANK_ACCOUNT_ID` n'est le numéro affiché sur l'espace client BoursoBank.
 > Il s'agit d'un autre identifiant, qui peut être récupéré dans l'URL de la page du compte.
 >
-> Par exemple : https://clients.boursobank.com/compte/cav/111c22222b55555a11111c66666b8888/mouvements > `111c22222b55555a11111c66666b8888` sera donc l'identifiant du compte à spécifier.
+> Par exemple : https://clients.boursobank.com/compte/cav/111c22222b55555a11111c66666b8888/mouvements
+>
+> `111c22222b55555a11111c66666b8888` sera donc l'identifiant du compte à spécifier.
 
 ## Utilisation
 
