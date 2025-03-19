@@ -1,6 +1,6 @@
 # Exporteur d'opérations bancaires BoursoBank
 
-Script python permettant d'exporter les opérations d'un compte BoursoBank dans un fichier `csv`.
+Script python permettant d'exporter les opérations d'un compte BoursoBank (ou plusieurs) dans un fichier `csv`.
 
 ## Installation des dépendances
 
@@ -21,7 +21,7 @@ Ces informations peuvent être directement passées en argument du script (voir 
 ```
 BOURSOBANK_CLIENT_ID = '12345678'
 BOURSOBANK_PASSWORD = '87654321'
-BOURSOBANK_ACCOUNT_ID = '111c22222b55555a11111c66666b8888'
+BOURSOBANK_ACCOUNTS_ID = '111c22222b55555a11111c66666b8888'
 EXPORT_PATH = '~/exports_boursobank'
 LOG_PATH = '/var/logs/boursobank-expoorter'
 ```
@@ -30,14 +30,15 @@ LOG_PATH = '/var/logs/boursobank-expoorter'
 
 -   **BOURSOBANK_CLIENT_ID** : Identifiant client BoursoBank. Utilisé pour la connexion à l'espace client.
 -   **BOURSOBANK_PASSWORD** : Mot de passe utilisé pour la connexion à l'espace client.
--   **BOURSOBANK_ACCOUNT_ID** : Identifiant du compte qui contient les opérations à exporter.
+-   **BOURSOBANK_ACCOUNTS_ID** : Identifiant des comptes qui contiennent les opérations à exporter.
+    Plusieurs comptes peuvent être spécifiés, dans ce cas, ils doivent être séparés par une virgule.
 -   **EXPORT_PATH** : Chemin vers le dossier qui contiendra les exports `csv`. Cela peut être un chemin absolu ou relatif. Ne pas inclure le nom du fichier, car celui-ci sera généré automatiquement en fonction des paramètres d'export spécifiés en argument.
     Si le chemin est vide (ou la variable non définie), alors les exports seront enregistrés dans le répertoire courant.
 -   **LOG_PATH** : Chemin vers le dossier qui contiendra le fichier de logs `boursobank_exporter.log`.
     Si le chemin est vide (ou la variable non définie), alors le fichier de log sera créé dans le répertoire courant.
 
 > [!Important]
-> L'identifiant du compte pour la variable `BOURSOBANK_ACCOUNT_ID` n'est le numéro affiché sur l'espace client BoursoBank.
+> L'identifiant du compte pour la variable `BOURSOBANK_ACCOUNTS_ID` n'est le numéro affiché sur l'espace client BoursoBank.
 > Il s'agit d'un autre identifiant, qui peut être récupéré dans l'URL de la page du compte.
 >
 > Par exemple : https://clients.boursobank.com/compte/cav/111c22222b55555a11111c66666b8888/mouvements
@@ -64,7 +65,7 @@ python .\src\boursobank_exporter_cli.py -h
 Qui retournera ceci :
 
 ```
-usage: boursobank_exporter_cli.py [-h] [--client-id CLIENT_ID] [--password PASSWORD] [--account-id ACCOUNT_ID] [--export-directory EXPORT_PATH]
+usage: boursobank_exporter_cli.py [-h] [--client-id CLIENT_ID] [--password PASSWORD] [--accounts-id ACCOUNTS_ID] [--export-directory EXPORT_PATH]
                                   [--no-logs] [--from FROM_DATE] [--to TO_DATE]
 
 options:
@@ -73,7 +74,7 @@ options:
                         Numéro client BoursoBank
   --password PASSWORD, -p PASSWORD
                         Mot de passe BoursoBank
-  --account-id ACCOUNT_ID, -a ACCOUNT_ID
+  --accounts-id ACCOUNTS_ID, -a ACCOUNTS_ID
                         Numéro de compte BoursoBank
   --export-directory EXPORT_PATH, -d EXPORT_PATH
                         Chemin vers le dossier dans lequel seront enregistrées les extractions
@@ -86,15 +87,15 @@ options:
 
 ## Correspondance entre les arguments et les variables d'environnement
 
-| Argument           | Variable              | Obligatoire ? |
-| ------------------ | --------------------- | ------------- |
-| --client-id        | BOURSOBANK_CLIENT_ID  | X             |
-| --password         | BOURSOBANK_PASSWORD   | X             |
-| --account-id       | BOURSOBANK_ACCOUNT_ID | X             |
-| --export-directory | EXPORT_PATH           |               |
-| --no-logs          | LOG_PATH              |               |
-| --from             |                       | X             |
-| --to               |                       | X             |
+| Argument           | Variable               | Obligatoire ? |
+| ------------------ | ---------------------- | ------------- |
+| --client-id        | BOURSOBANK_CLIENT_ID   | X             |
+| --password         | BOURSOBANK_PASSWORD    | X             |
+| --accounts-id      | BOURSOBANK_ACCOUNTS_ID | X             |
+| --export-directory | EXPORT_PATH            |               |
+| --no-logs          | LOG_PATH               |               |
+| --from             |                        | X             |
+| --to               |                        | X             |
 
 > [!NOTE]  
 > Comme indiqué plus haut, les arguments obligatoires peuvent être omis si la variable d'environnement à laquelle ils sont associés est spécifiée.

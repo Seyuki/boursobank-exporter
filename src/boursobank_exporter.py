@@ -129,7 +129,7 @@ class BoursoBankExporter:
         Returns:
             bytes: Export des transactions au format binaire.
         """
-        logger.info(f"Export des données du {from_date} au {to_date}")
+        logger.info(f"Export des données du {from_date} au {to_date} pour le compte {account_id}")
 
         # Vérification de la connexion
         if not self.__is_logged:
@@ -159,12 +159,15 @@ class BoursoBankExporter:
         return response.content, from_date, to_date
     
 
-    def save_data(self, folder: str, data: bytes, from_date: str, to_date: str) -> str:
+    def save_data(self, folder: str, account_id: str, data: bytes, from_date: str, to_date: str) -> str:
         """Enregistre l'export binaire dans un fichier csv sur le disque, dans le dossier spécifié.
 
         Args:
             folder (str): Chemin vers le dossier dans lequel le fichier csv sera créé.
+            account_id (str): Identifiant du compte BoursoBank.
             data (bytes): Export des transactions au format binaire.
+            from_date (str): Date de début des transactions (DD/MM/YYYY).
+            to_date (str): Date de fin des transactions (DD/MM/YYYY).
 
         Returns:
             str: Chemin vers le fichier csv créé.
@@ -173,7 +176,8 @@ class BoursoBankExporter:
         Path(folder).mkdir(parents=True, exist_ok=True)
 
         # Nom de l'export
-        export_file: str = "boursobank_export_"
+        export_file: str = account_id
+        export_file += "_"
         export_file += from_date[6:] + from_date[3:5] + from_date[0:2]
         export_file += "-"
         export_file += to_date[6:] + to_date[3:5] + to_date[0:2]
