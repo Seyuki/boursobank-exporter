@@ -19,13 +19,13 @@ Ces informations peuvent être directement passées en argument du script (voir 
 ### Exemple de fichier .env
 
 ```
-BOURSOBANK_CLIENT_ID = '12345678'
-BOURSOBANK_PASSWORD = '87654321'
+BOURSOBANK_CLIENT_ID   = '12345678'
+BOURSOBANK_PASSWORD    = '87654321'
 BOURSOBANK_ACCOUNTS_ID = '111c22222b55555a11111c66666b8888'
-LOG_PATH = '/var/logs/boursobank-exporter'
-OUTPUT_TYPE = 'both'
-EXPORT_PATH = '~/exports_boursobank'
-SQLITE_DB_PATH = 'exports_boursobank.db'
+LOG_PATH               = '/var/logs/boursobank-exporter'
+OUTPUT_TYPE            = 'both'
+EXPORT_PATH            = '~/exports_boursobank'
+SQLITE_DB_PATH         = 'exports_boursobank.db'
 ```
 
 ### Explication des variables d'environnement
