@@ -122,9 +122,6 @@ def validate_args() -> bool:
     elif to_date is not None and not re.match(r"^\d{2}\/\d{2}\/\d{4}$", args.to_date):
         logger.error("La date de fin doit être au format DD/MM/YYYY.")
         return False
-    elif from_date is not None and to_date is not None and args.from_date == args.to_date:
-        logger.error("Les dates de début et de fin ne peuvent pas être identiques.")
-        return False
     elif from_date is not None and to_date is not None and from_date > to_date:
         logger.error("La date de début doit être antérieure à la date de fin.")
         return False
