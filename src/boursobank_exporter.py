@@ -1,4 +1,4 @@
-import os, re, logging, requests
+import os, re, io, logging, requests, csv, sqlite3
 from bs4 import BeautifulSoup
 from pathlib import Path
 
@@ -159,7 +159,7 @@ class BoursoBankExporter:
         return response.content, from_date, to_date
     
 
-    def save_data(self, folder: str, account_id: str, data: bytes, from_date: str, to_date: str) -> str:
+    def write_to_csv(self, folder: str, account_id: str, data: bytes, from_date: str, to_date: str) -> str:
         """Enregistre l'export binaire dans un fichier csv sur le disque, dans le dossier spécifié.
 
         Args:
@@ -190,3 +190,114 @@ class BoursoBankExporter:
         logger.info(f"Fichier enregistré : {export_file}")
 
         return export_file
+    
+
+    def __init_db(self, client_id: str, db_path: str) -> list[str]:
+        """Crée la base de donnée et la table si elles n'existent pas déjà.
+
+        Args:
+            client_id (str): Identifiant client, pour nommer la table.
+            db_path (str): Chemin vers la base de données.
+
+        Returns:
+            list[str]: Liste complète des champs de la table.
+        """
+        logger.debug("Initialisation de la base de données")
+
+        # Création des dossiers s'ils n'existent pas
+        parent_path: str = os.path.dirname(db_path)
+        if parent_path != "":
+            Path(parent_path).mkdir(parents=True, exist_ok=True)
+
+        # Champs de la table
+        fields: list[tuple[str, str, bool]] = [
+            ("dateOp", "TEXT"),
+            ("dateVal", "TEXT"),
+            ("label", "TEXT"),
+            ("category", "TEXT"),
+            ("categoryParent", "TEXT"),
+            ("supplierFound", "TEXT"),
+            ("amount", "REAL"),
+            ("comment", "TEXT"),
+            ("accountNum", "TEXT"),
+            ("accountLabel", "TEXT"),
+            ("accountbalance", "REAL")
+        ]
+        fields_for_create: list[str] = []
+        fields_for_query: list[str] = []
+        for field in fields:
+            fields_for_create.append(f"{field[0]} {field[1]}")
+            fields_for_query.append(field[0])
+
+        # Création de la table si elle n'existe pas
+        req: str = f"CREATE TABLE IF NOT EXISTS client_{client_id} ({",".join(fields_for_create)});"
+        con: sqlite3.Connection = sqlite3.connect(db_path)
+        cur: sqlite3.Cursor = con.cursor()
+        cur.execute(req)
+        con.commit()
+        con.close()
+
+        return fields_for_query
+    
+
+    def __remove_same_period(self, client_id: str, from_date: str, to_date: str, db_path: str) -> None:
+        """Supprime les opérations sur la même période que celle demandée, afin d'éviter d'avoir des opérations en doublon.
+
+        Args:
+            client_id (str): Identifiant client, pour identifier la table.
+            from_date (str): Date de début des transactions (DD/MM/YYYY).
+            to_date (str): Date de fin des transactions (DD/MM/YYYY).
+            db_path (str): Chemin vers la base de données.
+        """
+        logger.info("Suppression des opérations sur la même période pour éviter les doublons")
+
+        from_date = from_date[6:] + "-" + from_date[3:5] + "-" + from_date[0:2]
+        to_date = to_date[6:] + "-" + to_date[3:5] + "-" + to_date[0:2]
+
+        con: sqlite3.Connection = sqlite3.connect(db_path)
+        cur: sqlite3.Cursor = con.cursor()
+        cur.execute(f"DELETE FROM client_{client_id} WHERE dateOp >= '{from_date}' AND dateOp <= '{to_date}';")
+        con.commit()
+        con.close()
+
+
+    def write_to_sqlite(self, client_id: str, data: bytes, from_date: str, to_date: str, db_path: str = "boursobank_exports.db") -> None:
+        """Insert les opérations exportées dans une base de données SQLite.
+
+        Args:
+            client_id (str): Identifiant client.
+            data (bytes): Export des transactions au format binaire.
+            from_date (str): Date de début des transactions (DD/MM/YYYY).
+            to_date (str): Date de fin des transactions (DD/MM/YYYY).
+            db_path (str, optional): Chemin vers la base de données SQLite. Defaults to "boursobank_exports.db".
+        """
+        # Base de données SQLite
+        if db_path is None or db_path == "":
+            db_path = "boursobank_exports.db"
+
+        # Initialisation de la DB
+        fields = self.__init_db(client_id, db_path)
+
+        # Suppression des anciennes opérations sur la même période
+        self.__remove_same_period(client_id, from_date, to_date, db_path)
+
+        # Décodage des données
+        io_data: io.StringIO = io.StringIO(data.decode("utf-8-sig"))
+        dict_reader: csv.DictReader = csv.DictReader(io_data, delimiter=";")
+
+        rows: list[dict[str, any]] = [] 
+        for row in dict_reader:
+            row["amount"] = float(row["amount"].replace(" ", "").replace(",", "."))
+            row["accountbalance"] = float(row["accountbalance"].replace(" ", "").replace(",", "."))
+            rows.append(row)
+        
+        # Insertion des données
+        logger.info(f"Insertion des données dans la base SQLite, table 'client_{client_id}'")
+        fields = [f":{field}" for field in fields]
+        req: str = f"INSERT INTO client_{client_id} VALUES ({",".join(fields)});"
+
+        con: sqlite3.Connection = sqlite3.connect(db_path)
+        cur: sqlite3.Cursor = con.cursor()
+        cur.executemany(req, tuple(rows))
+        con.commit()
+        con.close()
