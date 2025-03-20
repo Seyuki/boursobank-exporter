@@ -71,7 +71,7 @@ Il est possible de ne pas spécifier les dates, ou de n'en spécifier qu'une des
 -   **Début (--from)** : Si le chemin vers la base `sqlite` est spécifié (dans le fichier `.env` ou en argument), le script récupérera la date la plus récente des opérations déjà exportées pour le compte en question. Si le chemin vers la base `sqlite` n'est pas spécifié ou aucune donnée n'a été trouvée pour le compte, alors la date correspondra à la date d'il y a 30 jours.
 -   **Fin (--to)** : Date du jour.
 
-Les autres arguments peuvent également être omis s'ils sont déjà présents dans le fichier d'environnement `.env`.
+Les autres arguments obligatoires peuvent être omis s'ils sont déjà présents dans le fichier d'environnement `.env`. (Voir plus bas pour la correspondance entre les arguments et les variables d'environnement.)
 
 ### Liste complète des arguments
 
