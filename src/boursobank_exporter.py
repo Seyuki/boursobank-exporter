@@ -287,8 +287,14 @@ class BoursoBankExporter:
 
         rows: list[dict[str, any]] = [] 
         for row in dict_reader:
-            row["amount"] = float(row["amount"].replace(" ", "").replace(",", "."))
-            row["accountbalance"] = float(row["accountbalance"].replace(" ", "").replace(",", "."))
+            if row["amount"] is not None and row["amount"] != "":
+                row["amount"] = float(row["amount"].replace(" ", "").replace(",", "."))
+            else:
+                row["amount"] = None
+            if row["accountbalance"] is not None and row["accountbalance"] != "":
+                row["accountbalance"] = float(row["accountbalance"].replace(" ", "").replace(",", "."))
+            else:
+                row["accountbalance"] = None
             rows.append(row)
         
         # Insertion des données
