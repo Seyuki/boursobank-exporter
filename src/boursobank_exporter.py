@@ -151,7 +151,12 @@ class BoursoBankExporter:
             if last_date_row == None:
                 return None
             else:
-                return last_date_row[0]
+                if re.match(r"^\d{4}\-\d{2}\-\d{2}$", last_date_row[0]):
+                    last_date: str = last_date_row[0]
+                    return last_date[8:] + "/" + last_date[5:7] + "/" + last_date[0:4]
+                else:
+                    return None
+                # 2025-03-20
         except:
             logger.error(f"Impossible de vérifier la date de la dernière opération pour le compte '{account_id}'")
             return None
@@ -257,6 +262,10 @@ class BoursoBankExporter:
         Returns:
             str: Chemin vers le fichier csv créé.
         """
+        if data is None:
+            logger.warning("Le contenu de l'export est vide")
+            return None
+
         # Création du dossier d'export s'il n'existe pas
         Path(folder).mkdir(parents=True, exist_ok=True)
 
@@ -356,6 +365,10 @@ class BoursoBankExporter:
             to_date (str): Date de fin des transactions (DD/MM/YYYY).
             db_path (str, optional): Chemin vers la base de données SQLite. Defaults to "boursobank_exports.db".
         """
+        if data is None:
+            logger.warning("Le contenu de l'export est vide")
+            return
+
         # Base de données SQLite
         if db_path is None or db_path == "":
             db_path = "boursobank_exports.db"
