@@ -38,7 +38,7 @@ LOG_PATH = '/var/logs/boursobank-exporter'
     Si le chemin est vide (ou la variable non définie), alors le fichier de log sera créé dans le répertoire courant.
 
 > [!Important]
-> L'identifiant du compte pour la variable `BOURSOBANK_ACCOUNTS_ID` n'est le numéro affiché sur l'espace client BoursoBank.
+> L'identifiant du compte pour la variable `BOURSOBANK_ACCOUNTS_ID` n'est pas le numéro affiché sur l'espace client BoursoBank.
 > Il s'agit d'un autre identifiant, qui peut être récupéré dans l'URL de la page du compte.
 >
 > Par exemple : https://clients.boursobank.com/compte/cav/111c22222b55555a11111c66666b8888/mouvements
