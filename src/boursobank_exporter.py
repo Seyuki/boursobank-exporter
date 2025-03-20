@@ -1,4 +1,4 @@
-import os, re, io, logging, requests, csv, sqlite3
+import os, re, io, logging, requests, csv, sqlite3, datetime
 from bs4 import BeautifulSoup
 from pathlib import Path
 
@@ -61,6 +61,7 @@ class BoursoBankExporter:
         self.__matrix_random_challenge: str = None
         self.__digits_mapping: dict[str, str] = {}
         self.__is_logged: bool = False
+        self.__client_id: str = None
 
         # Création de la session
         self.__create_session()
@@ -106,7 +107,7 @@ class BoursoBankExporter:
             ('form[ajx]', (None,  1)),
             ('form[platformAuthenticatorAvailable]', (None,  "-1")),
             ('form[passwordAck]', (None,  "{}")),
-            ('form[fakePassword]', (None,  "••••••••")),
+            ('form[fakePassword]', (None,  "•" * len(password))),
             ('form[_token]', (None,  self.__form_token)),
             ('form[matrixRandomChallenge]', (None,  self.__matrix_random_challenge))
         )
@@ -116,6 +117,87 @@ class BoursoBankExporter:
         
         if response.status_code == 200:
             self.__is_logged = True
+            self.__client_id = client
+
+
+    def __get_last_transaction_date(self, account_id: str, db_path: str) -> str:
+        """Récupère la date de l'opération la plus récente pour le compte spécifiée dans la base de donnée spécifiée.
+
+        Args:
+            account_id (str): Numéro de compte pour lequel la dernière date doit être récupérée.
+            db_path (str): Chemin vers la base de données.
+
+        Returns:
+            str: Dernière date d'opération si elle existe, sinon None
+        """
+        # Vérification de l'existende de la db
+        if not os.path.isfile(db_path):
+            return None
+        
+        try:
+            con: sqlite3.Connection = sqlite3.connect(db_path)
+            cur: sqlite3.Cursor = con.cursor()
+
+            # Vérification de l'existence de la table
+            table_req: sqlite3.Cursor = cur.execute(f"SELECT name FROM sqlite_master WHERE type='table' AND name='client_{self.__client_id}';")
+            if table_req.fetchone() == None:
+                return None
+            
+            last_date_req: sqlite3.Cursor = cur.execute(f"SELECT MAX(dateOp) FROM client_{self.__client_id} WHERE accountId = '{account_id}' AND dateOp <> '' AND dateOp IS NOT NULL;")
+            last_date_row: any = last_date_req.fetchone()
+
+            con.close()
+
+            if last_date_row == None:
+                return None
+            else:
+                return last_date_row[0]
+        except:
+            logger.error(f"Impossible de vérifier la date de la dernière opération pour le compte '{account_id}'")
+            return None
+
+
+    def validate_dates(self, account_id: str, from_date: str, to_date: str, db_path: str) -> tuple[str, str]:
+        """Valide les dates passées en paramètre.
+        Si les dates ne sont pas renseignées, des dates par défaut seront forcées.
+
+        Pour la date de début, la date correspondra à la date de la dernière transaction exportée pour le compte, si elle existe,
+        sinon, elle correspondra à la date du jour - 30 jours.
+
+        Pour la date de fin, la date correspondra à la date du jour.
+
+        Args:
+            account_id (str): Numéro de compte pour lequel la dernière date doit être récupérée.
+            from_date (str): Date de début spécifiée par l'utilisateur.
+            to_date (str): Date de fin spécifiée par l'utilisateur.
+            db_path (str): Chemin vers la base de données.
+
+        Returns:
+            tuple[str, str]: La date de début et date de fin.
+        """
+        # Date du jour
+        today_date: datetime.date = datetime.datetime.now().date()
+
+        # Date de début
+        if from_date is None or from_date == "":
+            from_date = None
+            # Dernière date
+            if db_path is not None and db_path != "":
+                from_date = self.__get_last_transaction_date(account_id, db_path)
+                logger.debug(f"Dernière date pour '{account_id}': '{from_date}'")
+
+            # Si la date est toujours vide
+            if from_date is None:
+                from_date = (today_date - datetime.timedelta(days=30)).strftime("%d/%m/%Y")
+
+            logger.info(f"Nouvelle date de début : {from_date}")
+
+        # Date de fin
+        if to_date is None or to_date == "":
+            to_date = today_date.strftime("%d/%m/%Y")
+            logger.info(f"Nouvelle date de fin : {to_date}")
+
+        return from_date, to_date
 
 
     def export_data(self, account_id: str, from_date: str, to_date: str) -> tuple[bytes, str, str]:
@@ -135,9 +217,12 @@ class BoursoBankExporter:
         if not self.__is_logged:
             logger.error("Veuillez d'abord vous connecter")
             return None
-
+        
         # Vérification du format des dates
         pattern: re.Pattern = re.compile(r"^\d{2}\/\d{2}\/\d{4}$")
+        if from_date is None or from_date == "" or to_date is None or to_date == "":
+            logger.error("Les dates doivent être renseignés")
+            return None
         if not pattern.match(from_date) or not pattern.match(to_date):
             logger.error("Les dates doivent être au format DD/MM/YYYY")
             return None
@@ -164,7 +249,7 @@ class BoursoBankExporter:
 
         Args:
             folder (str): Chemin vers le dossier dans lequel le fichier csv sera créé.
-            account_id (str): Identifiant du compte BoursoBank.
+            account_id (str): Identifiant du compte dont provient l'export.
             data (bytes): Export des transactions au format binaire.
             from_date (str): Date de début des transactions (DD/MM/YYYY).
             to_date (str): Date de fin des transactions (DD/MM/YYYY).
@@ -192,11 +277,10 @@ class BoursoBankExporter:
         return export_file
     
 
-    def __init_db(self, client_id: str, db_path: str) -> list[str]:
+    def __init_db(self, db_path: str) -> list[str]:
         """Crée la base de donnée et la table si elles n'existent pas déjà.
 
         Args:
-            client_id (str): Identifiant client, pour nommer la table.
             db_path (str): Chemin vers la base de données.
 
         Returns:
@@ -219,6 +303,7 @@ class BoursoBankExporter:
             ("supplierFound", "TEXT"),
             ("amount", "REAL"),
             ("comment", "TEXT"),
+            ("accountId", "TEXT"),
             ("accountNum", "TEXT"),
             ("accountLabel", "TEXT"),
             ("accountbalance", "REAL")
@@ -230,7 +315,7 @@ class BoursoBankExporter:
             fields_for_query.append(field[0])
 
         # Création de la table si elle n'existe pas
-        req: str = f"CREATE TABLE IF NOT EXISTS client_{client_id} ({",".join(fields_for_create)});"
+        req: str = f"CREATE TABLE IF NOT EXISTS client_{self.__client_id} ({", ".join(fields_for_create)});"
         con: sqlite3.Connection = sqlite3.connect(db_path)
         cur: sqlite3.Cursor = con.cursor()
         cur.execute(req)
@@ -240,11 +325,11 @@ class BoursoBankExporter:
         return fields_for_query
     
 
-    def __remove_same_period(self, client_id: str, from_date: str, to_date: str, db_path: str) -> None:
+    def __remove_same_period(self, account_id: str, from_date: str, to_date: str, db_path: str) -> None:
         """Supprime les opérations sur la même période que celle demandée, afin d'éviter d'avoir des opérations en doublon.
 
         Args:
-            client_id (str): Identifiant client, pour identifier la table.
+            account_id (str): Identifiant du compte à nettoyer.
             from_date (str): Date de début des transactions (DD/MM/YYYY).
             to_date (str): Date de fin des transactions (DD/MM/YYYY).
             db_path (str): Chemin vers la base de données.
@@ -256,16 +341,16 @@ class BoursoBankExporter:
 
         con: sqlite3.Connection = sqlite3.connect(db_path)
         cur: sqlite3.Cursor = con.cursor()
-        cur.execute(f"DELETE FROM client_{client_id} WHERE dateOp >= '{from_date}' AND dateOp <= '{to_date}';")
+        cur.execute(f"DELETE FROM client_{self.__client_id} WHERE accountId = '{account_id}' AND dateOp >= '{from_date}' AND dateOp <= '{to_date}';")
         con.commit()
         con.close()
 
 
-    def write_to_sqlite(self, client_id: str, data: bytes, from_date: str, to_date: str, db_path: str = "boursobank_exports.db") -> None:
+    def write_to_sqlite(self, account_id: str, data: bytes, from_date: str, to_date: str, db_path: str = "boursobank_exports.db") -> None:
         """Insert les opérations exportées dans une base de données SQLite.
 
         Args:
-            client_id (str): Identifiant client.
+            account_id (str): Identifiant du compte dont provient l'export.
             data (bytes): Export des transactions au format binaire.
             from_date (str): Date de début des transactions (DD/MM/YYYY).
             to_date (str): Date de fin des transactions (DD/MM/YYYY).
@@ -276,10 +361,10 @@ class BoursoBankExporter:
             db_path = "boursobank_exports.db"
 
         # Initialisation de la DB
-        fields = self.__init_db(client_id, db_path)
+        fields = self.__init_db(db_path)
 
         # Suppression des anciennes opérations sur la même période
-        self.__remove_same_period(client_id, from_date, to_date, db_path)
+        self.__remove_same_period(account_id, from_date, to_date, db_path)
 
         # Décodage des données
         io_data: io.StringIO = io.StringIO(data.decode("utf-8-sig"))
@@ -287,6 +372,7 @@ class BoursoBankExporter:
 
         rows: list[dict[str, any]] = [] 
         for row in dict_reader:
+            row["accountId"] = account_id
             if row["amount"] is not None and row["amount"] != "":
                 row["amount"] = float(row["amount"].replace(" ", "").replace(",", "."))
             else:
@@ -298,9 +384,9 @@ class BoursoBankExporter:
             rows.append(row)
         
         # Insertion des données
-        logger.info(f"Insertion des données dans la base SQLite, table 'client_{client_id}'")
+        logger.info(f"Insertion des données dans la base SQLite, table 'client_{self.__client_id}'")
         fields = [f":{field}" for field in fields]
-        req: str = f"INSERT INTO client_{client_id} VALUES ({",".join(fields)});"
+        req: str = f"INSERT INTO client_{self.__client_id} VALUES ({",".join(fields)});"
 
         con: sqlite3.Connection = sqlite3.connect(db_path)
         cur: sqlite3.Cursor = con.cursor()

@@ -55,12 +55,23 @@ SQLITE_DB_PATH         = 'exports_boursobank.db'
 
 ## Utilisation
 
-Afin de réaliser un export en ligne de commande, le script `boursobank_exporter_cli.py` doit être exécuté avec au moins les deux arguments suivants :
+Afin de réaliser un export en ligne de commande, le script `boursobank_exporter_cli.py` peut être exécuté avec les deux arguments suivants :
 
 -   `--from FROM_DATE` ou `-f FROM_DATE` : date au format `DD/MM/YYY` représentant la date de début des opérations à exporter.
 -   `--to TO_DATE` ou `-t TO_DATE` : date au format `DD/MM/YYY` représentant la date de fin des opérations à exporter.
 
-Les autres arguments peuvent être omis s'ils sont déjà présents dans le fichier d'environnement `.env`.
+Exemple :
+
+```
+python .\src\boursobank_exporter_cli.py -f "01/01/2024" -t "31/12/2024"
+```
+
+Il est possible de ne pas spécifier les dates, ou de n'en spécifier qu'une des deux. Dans ce cas, la valeur des dates non spécifiées sera automatiquement déduite par le script :
+
+-   **Début (--from)** : Si le chemin vers la base `sqlite` est spécifié (dans le fichier `.env` ou en argument), le script récupérera la date la plus récente des opérations déjà exportées pour le compte en question. Si le chemin vers la base `sqlite` n'est pas spécifié ou aucune donnée n'a été trouvée pour le compte, alors la date correspondra à la date d'il y a 30 jours.
+-   **Fin (--to)** : Date du jour.
+
+Les autres arguments peuvent également être omis s'ils sont déjà présents dans le fichier d'environnement `.env`.
 
 ### Liste complète des arguments
 
@@ -108,8 +119,8 @@ options:
 | --output           | OUTPUT_TYPE            |               | csv                     |
 | --sqlite-db        | SQLITE_DB_PATH         |               | .\boursobank_exports.db |
 | --no-logs          |                        |               | False                   |
-| --from             |                        | X             |                         |
-| --to               |                        | X             |                         |
+| --from             |                        |               |                         |
+| --to               |                        |               |                         |
 
 > [!NOTE]  
 > Comme indiqué plus haut, les arguments obligatoires peuvent être omis si la variable d'environnement à laquelle ils sont associés est spécifiée.
