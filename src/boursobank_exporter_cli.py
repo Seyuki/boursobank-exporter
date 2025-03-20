@@ -86,6 +86,9 @@ def validate_args() -> bool:
     if args.output_type is None or args.output_type == "":
         args.output_type = "csv"
 
+    from_date = args.from_date[6:] + args.from_date[3:5] + args.from_date[0:2]
+    to_date = args.to_date[6:] + args.to_date[3:5] + args.to_date[0:2]
+
     if args.client_id is None:
         logger.error("L'identifiant client doit être spécifié.")
         return False
@@ -118,6 +121,12 @@ def validate_args() -> bool:
         return False
     elif not re.match(r"^\d{2}\/\d{2}\/\d{4}$", args.to_date):
         logger.error("La date de fin doit être au format DD/MM/YYYY.")
+        return False
+    elif args.from_date == args.to_date:
+        logger.error("Les dates de début et de fin ne peuvent pas être identiques.")
+        return False
+    elif from_date > to_date:
+        logger.error("La date de début doit être antérieure à la date de fin.")
         return False
     
     return True
