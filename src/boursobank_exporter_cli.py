@@ -148,10 +148,11 @@ def main() -> None:
         from_to_dates: tuple[str, str] = bb_exporter.validate_dates(account_id, args.from_date, args.to_date, args.db_path)
         export: tuple[bytes, str, str] = bb_exporter.export_data(account_id, from_to_dates[0], from_to_dates[1])
 
-        if args.output_type.lower() in ["csv", "both"]:
-            bb_exporter.write_to_csv(args.export_path, account_id, export[0], export[1], export[2])
-        if args.output_type.lower() in ["sqlite", "both"]:
-            bb_exporter.write_to_sqlite(account_id, export[0], export[1], export[2], args.db_path)
+        if export[0] is not None:
+            if args.output_type.lower() in ["csv", "both"]:
+                bb_exporter.write_to_csv(args.export_path, account_id, export[0], export[1], export[2])
+            if args.output_type.lower() in ["sqlite", "both"]:
+                bb_exporter.write_to_sqlite(account_id, export[0], export[1], export[2], args.db_path)
 
 
 if __name__ == "__main__":

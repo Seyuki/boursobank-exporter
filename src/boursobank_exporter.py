@@ -246,7 +246,11 @@ class BoursoBankExporter:
         }
 
         response: requests.Response = self.__http_session.get("https://clients.boursobank.com/budget/exporter-mouvements", params=params)
-        return response.content, from_date, to_date
+        if response.content.decode("utf-8-sig").startswith("<!DOCTYPE html>"):
+            logger.error("Bourso a renvoyé une page HTML, ce qui indique une erreur. Il est possible qu'il n'existe aucune opération pour la période spécifiée.")
+            return None, from_date, to_date
+        else:
+            return response.content, from_date, to_date
     
 
     def write_to_csv(self, folder: str, account_id: str, data: bytes, from_date: str, to_date: str) -> str:
