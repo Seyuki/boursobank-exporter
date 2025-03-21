@@ -110,17 +110,17 @@ options:
 
 ## Correspondance entre les arguments et les variables d'environnement
 
-| Argument           | Variable               | Obligatoire ? | Par défaut              |
-| ------------------ | ---------------------- | ------------- | ----------------------- |
-| --client-id        | BOURSOBANK_CLIENT_ID   | X             |                         |
-| --password         | BOURSOBANK_PASSWORD    | X             |                         |
-| --accounts-id      | BOURSOBANK_ACCOUNTS_ID | X             |                         |
-| --export-directory | EXPORT_PATH            |               | .\                      |
-| --output           | OUTPUT_TYPE            |               | csv                     |
-| --sqlite-db        | SQLITE_DB_PATH         |               | .\boursobank_exports.db |
-| --no-logs          |                        |               | False                   |
-| --from             |                        |               |                         |
-| --to               |                        |               |                         |
+| Argument           | Variable               | Obligatoire ? | Par défaut                                                                 |
+| ------------------ | ---------------------- | ------------- | -------------------------------------------------------------------------- |
+| --client-id        | BOURSOBANK_CLIENT_ID   | X             |                                                                            |
+| --password         | BOURSOBANK_PASSWORD    | X             |                                                                            |
+| --accounts-id      | BOURSOBANK_ACCOUNTS_ID | X             |                                                                            |
+| --export-directory | EXPORT_PATH            |               | .\                                                                         |
+| --output           | OUTPUT_TYPE            |               | csv                                                                        |
+| --sqlite-db        | SQLITE_DB_PATH         |               | .\boursobank_exports.db                                                    |
+| --no-logs          |                        |               | False                                                                      |
+| --from             |                        |               | Date dernière opération exportée pour le compte, ou date d'il y a 30 jours |
+| --to               |                        |               | Date du jour                                                               |
 
 > [!NOTE]  
 > Comme indiqué plus haut, les arguments obligatoires peuvent être omis si la variable d'environnement à laquelle ils sont associés est spécifiée.
