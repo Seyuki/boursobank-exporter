@@ -1,6 +1,6 @@
 # Exporteur d'opérations bancaires BoursoBank
 
-Script python permettant d'exporter les opérations d'un compte BoursoBank (ou plusieurs) dans un fichier `csv`, une base de données `sqlite`, et/ou une base de données PostgreSQL.
+Script python permettant d'exporter les opérations d'un compte BoursoBank (ou plusieurs) dans un fichier `csv`, une base de données `sqlite`, et/ou une base de données `PostgreSQL`.
 
 ## Installation des dépendances
 
