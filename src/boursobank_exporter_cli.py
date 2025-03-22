@@ -32,13 +32,17 @@ parser.add_argument('--output',
                     '-o',
                     dest='output_type',
                     default=os.getenv("OUTPUT_TYPE"),
-                    choices={"csv", "sqlite", "both"},
-                    help="Type d'export souhaité, peut être 'csv', 'sqlite' ou 'both' pour les deux")
+                    help="Type d'export souhaité, peut être 'csv', 'sqlite' ou 'postgresql', ou une combinaison de ces 3 valeurs séparées par une virgule")
 parser.add_argument('--sqlite-db',
                     '-db',
                     dest='db_path',
                     default=os.getenv("SQLITE_DB_PATH"),
                     help="Chemin vers la base de données SQLite")
+parser.add_argument('--postgresql-uri',
+                    '-pg',
+                    dest='postgresql_uri',
+                    default=os.getenv("POSTGRESQL_CONN_STRING"),
+                    help="Chaine de connexion à la base PostgreSQL")
 parser.add_argument('--no-logs',
                     dest='no_logs',
                     action='store_true',
@@ -113,9 +117,6 @@ def validate_args() -> bool:
     elif not re.match(r"^[\da-zA-Z,]+$", args.accounts_id):
         logger.error("Les numéros de comptes ne doivent contenir que des chiffres et des lettres.")
         return False
-    elif args.output_type.lower() not in ["csv", "sqlite", "both"]:
-        logger.error("Le type d'export doit être 'csv', 'sqlite' ou 'both'.")
-        return False
     elif from_date is not None and not re.match(r"^\d{2}\/\d{2}\/\d{4}$", args.from_date):
         logger.error("La date de début doit être au format DD/MM/YYYY.")
         return False
@@ -125,6 +126,18 @@ def validate_args() -> bool:
     elif from_date is not None and to_date is not None and from_date > to_date:
         logger.error("La date de début doit être antérieure à la date de fin.")
         return False
+    elif "postgresql" in args.output_type.lower():
+        if args.postgresql_uri is None or args.postgresql_uri == "":
+            logger.error("La chaine de connexion à la base PostgreSQL doit être spécifiée.")
+            return False
+        elif not args.postgresql_uri.lower().startswith("postgresql://"):
+            logger.error("La chaine de connexion à la base PostgreSQL doit être de type postgresql://.")
+            return False 
+    
+    for output_type in args.output_type.lower().split(","):
+        if output_type.strip() not in ["csv", "sqlite", "postgresql"]:
+            logger.error(f"Le type d'export '{output_type}' est inconnu.")
+            return False
     
     return True
 
@@ -135,6 +148,9 @@ def main() -> None:
     # Vérification des arguments
     if not validate_args():
         return
+    
+    # Outputs
+    output_types: list[str] = [output.strip() for output in args.output_type.lower().split(",")]
     
     # Liste des comptes
     accounts_id: list[str] = args.accounts_id.split(",")
@@ -149,10 +165,12 @@ def main() -> None:
         export: tuple[bytes, str, str] = bb_exporter.export_data(account_id, from_to_dates[0], from_to_dates[1])
 
         if export[0] is not None:
-            if args.output_type.lower() in ["csv", "both"]:
+            if "csv" in output_types:
                 bb_exporter.write_to_csv(args.export_path, account_id, export[0], export[1], export[2])
-            if args.output_type.lower() in ["sqlite", "both"]:
+            if "sqlite" in output_types:
                 bb_exporter.write_to_sqlite(account_id, export[0], export[1], export[2], args.db_path)
+            if "postgresql" in output_types:
+                bb_exporter.write_to_postgresql(account_id, export[0], export[1], export[2], args.postgresql_uri)
 
 
 if __name__ == "__main__":

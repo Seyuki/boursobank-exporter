@@ -1,4 +1,4 @@
-import os, re, io, logging, requests, csv, sqlite3, datetime
+import os, re, io, logging, requests, csv, datetime, sqlite3, psycopg
 from bs4 import BeautifulSoup
 from pathlib import Path
 
@@ -290,22 +290,15 @@ class BoursoBankExporter:
         return export_file
     
 
-    def __init_db(self, db_path: str) -> list[str]:
-        """Crée la base de donnée et la table si elles n'existent pas déjà.
+    def __create_db_table(self, cur: sqlite3.Cursor | psycopg.Cursor) -> list[str]:
+        """Crée la table dans la base de données si elle n'existe pas.
 
         Args:
-            db_path (str): Chemin vers la base de données.
+            cur (sqlite3.Cursor | psycopg.Cursor): Curseur de la base de données.
 
         Returns:
             list[str]: Liste complète des champs de la table.
         """
-        logger.debug("Initialisation de la base de données")
-
-        # Création des dossiers s'ils n'existent pas
-        parent_path: str = os.path.dirname(db_path)
-        if parent_path != "":
-            Path(parent_path).mkdir(parents=True, exist_ok=True)
-
         # Champs de la table
         fields: list[tuple[str, str, bool]] = [
             ("dateOp", "TEXT"),
@@ -327,62 +320,63 @@ class BoursoBankExporter:
             fields_for_create.append(f"{field[0]} {field[1]}")
             fields_for_query.append(field[0])
 
-        # Création de la table si elle n'existe pas
         req: str = f"CREATE TABLE IF NOT EXISTS client_{self.__client_id} ({", ".join(fields_for_create)});"
+        cur.execute(req)
+
+        return fields_for_query
+
+
+    def __init_sqlite_db(self, db_path: str) -> list[str]:
+        """Crée la base de donnée si elle n'existe pas.
+
+        Args:
+            db_path (str): Chemin vers la base de données.
+
+        Returns:
+            list[str]: Liste complète des champs de la table.
+        """
+        logger.debug("Initialisation de la base de données SQLite")
+
+        # Création des dossiers s'ils n'existent pas
+        parent_path: str = os.path.dirname(db_path)
+        if parent_path != "":
+            Path(parent_path).mkdir(parents=True, exist_ok=True)
+
+        # Création de la table si elle n'existe pas
         con: sqlite3.Connection = sqlite3.connect(db_path)
         cur: sqlite3.Cursor = con.cursor()
-        cur.execute(req)
+        fields_for_query = self.__create_db_table(cur)
         con.commit()
         con.close()
 
         return fields_for_query
     
 
-    def __remove_same_period(self, account_id: str, from_date: str, to_date: str, db_path: str) -> None:
+    def __remove_same_period(self, account_id: str, from_date: str, to_date: str, cur: sqlite3.Cursor | psycopg.Cursor) -> None:
         """Supprime les opérations sur la même période que celle demandée, afin d'éviter d'avoir des opérations en doublon.
 
         Args:
             account_id (str): Identifiant du compte à nettoyer.
             from_date (str): Date de début des transactions (DD/MM/YYYY).
             to_date (str): Date de fin des transactions (DD/MM/YYYY).
-            db_path (str): Chemin vers la base de données.
+            cur (sqlite3.Cursor | psycopg.Cursor): Curseur de la base de données.
         """
         logger.info("Suppression des opérations sur la même période pour éviter les doublons")
 
         from_date = from_date[6:] + "-" + from_date[3:5] + "-" + from_date[0:2]
         to_date = to_date[6:] + "-" + to_date[3:5] + "-" + to_date[0:2]
 
-        con: sqlite3.Connection = sqlite3.connect(db_path)
-        cur: sqlite3.Cursor = con.cursor()
         cur.execute(f"DELETE FROM client_{self.__client_id} WHERE accountId = '{account_id}' AND dateOp >= '{from_date}' AND dateOp <= '{to_date}';")
-        con.commit()
-        con.close()
 
 
-    def write_to_sqlite(self, account_id: str, data: bytes, from_date: str, to_date: str, db_path: str = "boursobank_exports.db") -> None:
-        """Insert les opérations exportées dans une base de données SQLite.
+    def __insert_into_db(self, account_id: str, data: bytes, fields: list[str], cur: sqlite3.Cursor | psycopg.Cursor):
+        """Insère les données dans la base de données.
 
         Args:
             account_id (str): Identifiant du compte dont provient l'export.
             data (bytes): Export des transactions au format binaire.
-            from_date (str): Date de début des transactions (DD/MM/YYYY).
-            to_date (str): Date de fin des transactions (DD/MM/YYYY).
-            db_path (str, optional): Chemin vers la base de données SQLite. Defaults to "boursobank_exports.db".
+            cur (sqlite3.Cursor | psycopg.Cursor): Curseur de la base de données.
         """
-        if data is None:
-            logger.warning("Le contenu de l'export est vide")
-            return
-
-        # Base de données SQLite
-        if db_path is None or db_path == "":
-            db_path = "boursobank_exports.db"
-
-        # Initialisation de la DB
-        fields = self.__init_db(db_path)
-
-        # Suppression des anciennes opérations sur la même période
-        self.__remove_same_period(account_id, from_date, to_date, db_path)
-
         # Décodage des données
         io_data: io.StringIO = io.StringIO(data.decode("utf-8-sig"))
         dict_reader: csv.DictReader = csv.DictReader(io_data, delimiter=";")
@@ -401,12 +395,94 @@ class BoursoBankExporter:
             rows.append(row)
         
         # Insertion des données
-        logger.info(f"Insertion des données dans la base SQLite, table 'client_{self.__client_id}'")
-        fields = [f":{field}" for field in fields]
+        logger.info(f"Insertion des données dans la table 'client_{self.__client_id}'")
         req: str = f"INSERT INTO client_{self.__client_id} VALUES ({",".join(fields)});"
 
+        cur.executemany(req, tuple(rows))
+
+
+    def write_to_sqlite(self, account_id: str, data: bytes, from_date: str, to_date: str, db_path: str = "boursobank_exports.db") -> None:
+        """Insert les opérations exportées dans une base de données SQLite.
+
+        Args:
+            account_id (str): Identifiant du compte dont provient l'export.
+            data (bytes): Export des transactions au format binaire.
+            from_date (str): Date de début des transactions (DD/MM/YYYY).
+            to_date (str): Date de fin des transactions (DD/MM/YYYY).
+            db_path (str, optional): Chemin vers la base de données SQLite. Defaults to "boursobank_exports.db".
+        """
+        logger.info("Import des données dans la base SQLite")
+        if data is None:
+            logger.warning("Le contenu de l'export est vide")
+            return
+
+        # Base de données SQLite
+        if db_path is None or db_path == "":
+            db_path = "boursobank_exports.db"
+
+        # Initialisation de la DB
+        fields = self.__init_sqlite_db(db_path)
+
+        # Suppression des anciennes opérations sur la même période
         con: sqlite3.Connection = sqlite3.connect(db_path)
         cur: sqlite3.Cursor = con.cursor()
-        cur.executemany(req, tuple(rows))
+        self.__remove_same_period(account_id, from_date, to_date, cur)
+        con.commit()
+
+        # Insertion des données
+        fields = [f":{field}" for field in fields]
+        self.__insert_into_db(account_id, data, fields, cur)
+        con.commit()
+        con.close()
+
+
+    def __init_postgresql_db(self, pg_uri: str) -> list[str]:
+        """Initialise la base de données PostgreSQL.
+
+        Args:
+            pg_uri (str): Chaîne de connexion à la base PostgreSQL.
+
+        Returns:
+            list[str]: Liste complète des champs de la table.
+        """
+        logger.debug("Initialisation de la base de données PostgreSQL")
+
+        # Création de la table si elle n'existe pas
+        con: psycopg.Connection = psycopg.connect(pg_uri)
+        cur: psycopg.Cursor = con.cursor()
+        fields_for_query = self.__create_db_table(cur)
+        con.commit()
+        con.close()
+
+        return fields_for_query
+
+
+    def write_to_postgresql(self, account_id: str, data: bytes, from_date: str, to_date: str, pg_uri: str) -> None:
+        """Insert les opérations exportées dans une base de données PostgreSQL.
+
+        Args:
+            account_id (str): Identifiant du compte dont provient l'export.
+            data (bytes): Export des transactions au format binaire.
+            from_date (str): Date de début des transactions (DD/MM/YYYY).
+            to_date (str): Date de fin des transactions (DD/MM/YYYY).
+            pg_uri (str): Chaîne de connexion à la base PostgreSQL.
+        """
+        logger.info("Import des données dans la base PostgreSQL")
+        if data is None:
+            logger.warning("Le contenu de l'export est vide")
+            return
+        
+        # Initialisation de la DB
+        fields = self.__init_postgresql_db(pg_uri)
+
+        # Suppression des anciennes opérations sur la même période
+        con: psycopg.Connection = psycopg.connect(pg_uri)
+        cur: psycopg.Cursor = con.cursor()
+        self.__remove_same_period(account_id, from_date, to_date, cur)
+        con.commit()
+
+        # Insertion des données
+        fields = [f"%({field})s" for field in fields]
+        self.__insert_into_db(account_id, data, fields, cur)
         con.commit()
         con.close()
