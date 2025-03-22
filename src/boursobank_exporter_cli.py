@@ -161,7 +161,7 @@ def main() -> None:
 
     # Export des opérations
     for account_id in accounts_id:
-        from_to_dates: tuple[str, str] = bb_exporter.validate_dates(account_id, args.from_date, args.to_date, args.db_path)
+        from_to_dates: tuple[str, str] = bb_exporter.validate_dates(account_id, args.from_date, args.to_date, output_types, args.db_path, args.postgresql_uri)
         export: tuple[bytes, str, str] = bb_exporter.export_data(account_id, from_to_dates[0], from_to_dates[1])
 
         if export[0] is not None:

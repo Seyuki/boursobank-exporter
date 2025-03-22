@@ -120,30 +120,38 @@ class BoursoBankExporter:
             self.__client_id = client
 
 
-    def __get_last_transaction_date(self, account_id: str, db_path: str) -> str:
+    def __get_last_transaction_date(self, account_id: str, output_type: str, db: str) -> str:
         """Récupère la date de l'opération la plus récente pour le compte spécifiée dans la base de donnée spécifiée.
 
         Args:
             account_id (str): Numéro de compte pour lequel la dernière date doit être récupérée.
-            db_path (str): Chemin vers la base de données.
+            output_type (str): Type d'export, pour identifier la DB à vérifier.
+            db (str): Chemin ou chaine de connexion vers la base de données.
 
         Returns:
             str: Dernière date d'opération si elle existe, sinon None
         """
-        # Vérification de l'existende de la db
-        if not os.path.isfile(db_path):
-            return None
+        if output_type == "sqlite":
+            # Vérification de l'existende de la db
+            if not os.path.isfile(db):
+                return None
         
         try:
-            con: sqlite3.Connection = sqlite3.connect(db_path)
-            cur: sqlite3.Cursor = con.cursor()
+            if output_type == "sqlite":
+                con: sqlite3.Connection = sqlite3.connect(db)
+                req: str = f"SELECT name FROM sqlite_master WHERE type='table' AND name='client_{self.__client_id}';"
+            elif output_type == "postgresql":
+                con: psycopg.Connection = psycopg.connect(db)
+                req: str = f"SELECT tablename FROM pg_tables WHERE tablename='client_{self.__client_id}';"
+
+            cur: sqlite3.Cursor | psycopg.Cursor = con.cursor()
 
             # Vérification de l'existence de la table
-            table_req: sqlite3.Cursor = cur.execute(f"SELECT name FROM sqlite_master WHERE type='table' AND name='client_{self.__client_id}';")
+            table_req: sqlite3.Cursor | psycopg.Cursor = cur.execute(req)
             if table_req.fetchone() == None:
                 return None
             
-            last_date_req: sqlite3.Cursor = cur.execute(f"SELECT MAX(dateOp) FROM client_{self.__client_id} WHERE accountId = '{account_id}' AND dateOp <> '' AND dateOp IS NOT NULL;")
+            last_date_req: sqlite3.Cursor | psycopg.Cursor = cur.execute(f"SELECT MAX(dateOp) FROM client_{self.__client_id} WHERE accountId = '{account_id}' AND dateOp <> '' AND dateOp IS NOT NULL;")
             last_date_row: any = last_date_req.fetchone()
 
             con.close()
@@ -156,13 +164,12 @@ class BoursoBankExporter:
                     return last_date[8:] + "/" + last_date[5:7] + "/" + last_date[0:4]
                 else:
                     return None
-                # 2025-03-20
         except:
             logger.error(f"Impossible de vérifier la date de la dernière opération pour le compte '{account_id}'")
             return None
 
 
-    def validate_dates(self, account_id: str, from_date: str, to_date: str, db_path: str) -> tuple[str, str]:
+    def validate_dates(self, account_id: str, from_date: str, to_date: str, output_types: list[str], db_path: str, pg_uri: str) -> tuple[str, str]:
         """Valide les dates passées en paramètre.
         Si les dates ne sont pas renseignées, des dates par défaut seront forcées.
 
@@ -175,7 +182,9 @@ class BoursoBankExporter:
             account_id (str): Numéro de compte pour lequel la dernière date doit être récupérée.
             from_date (str): Date de début spécifiée par l'utilisateur.
             to_date (str): Date de fin spécifiée par l'utilisateur.
+            output_types (list[str]): Types d'exports demandés.
             db_path (str): Chemin vers la base de données.
+            pg_uri (str): Chaîne de connexion à la base PostgreSQL.
 
         Returns:
             tuple[str, str]: La date de début et date de fin.
@@ -185,11 +194,28 @@ class BoursoBankExporter:
 
         # Date de début
         if from_date is None or from_date == "":
-            from_date = None
+            last_dates = []
+
             # Dernière date
-            if db_path is not None and db_path != "":
-                from_date = self.__get_last_transaction_date(account_id, db_path)
-                logger.debug(f"Dernière date pour '{account_id}': '{from_date}'")
+            for output_type in output_types:
+                last_date_tmp = None
+
+                if (output_type == "sqlite" and db_path is not None and db_path != ""):
+                    last_date_tmp = self.__get_last_transaction_date(account_id, output_type, db_path)
+                    logger.debug(f"Dernière date pour '{account_id}': '{from_date}' ({output_type})")
+                elif output_type == "postgresql":
+                    last_date_tmp = self.__get_last_transaction_date(account_id, output_type, pg_uri)
+                    logger.debug(f"Dernière date pour '{account_id}': '{from_date}' ({output_type})")
+
+                if last_date_tmp is not None:
+                    last_dates.append(last_date_tmp)
+
+            if len(last_dates) == 0:
+                from_date = None
+            else:
+                from_date = min(last_dates)
+
+            logger.debug(f"Dernière date pour '{account_id}': '{from_date}'")
 
             # Si la date est toujours vide
             if from_date is None:
