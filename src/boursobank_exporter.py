@@ -395,6 +395,18 @@ class BoursoBankExporter:
         cur.execute(f"DELETE FROM client_{self.__client_id} WHERE accountId = '{account_id}' AND dateOp >= '{from_date}' AND dateOp <= '{to_date}';")
 
 
+    def __remove_pending(self, account_id: str, cur: sqlite3.Cursor | psycopg.Cursor) -> None:
+        """Supprime les opérations en cours d'autorisation. Ces opérations, une fois validées, changent de libellé et ne seront donc pas ignorés pour les prochains imports.
+        On les supprime donc pour éviter qu'elles créent des doublons.
+
+        Args:
+            account_id (str): Identifiant du compte à nettoyer.
+            cur (sqlite3.Cursor | psycopg.Cursor): Curseur de la base de données.
+        """
+        logger.info("Suppression des opérations en cours d'autorisation pour éviter les doublons")
+        cur.execute(f"DELETE FROM client_{self.__client_id} WHERE accountId = '{account_id}' AND category = 'Autorisation paiement / retrait en cours';")
+
+
     def __insert_into_db(self, account_id: str, data: bytes, fields: list[str], cur: sqlite3.Cursor | psycopg.Cursor):
         """Insère les données dans la base de données.
 
@@ -449,10 +461,11 @@ class BoursoBankExporter:
         # Initialisation de la DB
         fields = self.__init_sqlite_db(db_path)
 
-        # Suppression des anciennes opérations sur la même période
+        # Suppression des anciennes opérations sur la même période, et des opérations en autorisation
         con: sqlite3.Connection = sqlite3.connect(db_path)
         cur: sqlite3.Cursor = con.cursor()
         self.__remove_same_period(account_id, from_date, to_date, cur)
+        self.__remove_pending(account_id, cur)
         con.commit()
 
         # Insertion des données
@@ -505,6 +518,7 @@ class BoursoBankExporter:
         con: psycopg.Connection = psycopg.connect(pg_uri)
         cur: psycopg.Cursor = con.cursor()
         self.__remove_same_period(account_id, from_date, to_date, cur)
+        self.__remove_pending(account_id, cur)
         con.commit()
 
         # Insertion des données
