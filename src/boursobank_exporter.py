@@ -346,7 +346,7 @@ class BoursoBankExporter:
             fields_for_create.append(f"{field[0]} {field[1]}")
             fields_for_query.append(field[0])
 
-        req: str = f"CREATE TABLE IF NOT EXISTS client_{self.__client_id} ({", ".join(fields_for_create)});"
+        req: str = f"CREATE TABLE IF NOT EXISTS client_{self.__client_id} ({', '.join(fields_for_create)});"
         cur.execute(req)
 
         return fields_for_query
@@ -434,7 +434,7 @@ class BoursoBankExporter:
         
         # Insertion des données
         logger.info(f"Insertion des données dans la table 'client_{self.__client_id}'")
-        req: str = f"INSERT INTO client_{self.__client_id} VALUES ({",".join(fields)});"
+        req: str = f"INSERT INTO client_{self.__client_id} VALUES ({','.join(fields)});"
 
         cur.executemany(req, tuple(rows))
 
