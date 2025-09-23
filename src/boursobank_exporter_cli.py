@@ -18,6 +18,11 @@ parser.add_argument('--password',
                     dest='password',
                     default=os.getenv("BOURSOBANK_PASSWORD"),
                     help="Mot de passe BoursoBank")
+parser.add_argument('--identifier',
+                    '-i',
+                    dest='identifier',
+                    default=os.getenv("BOURSOBANK_IDENTIFIER"),
+                    help="Identifiant BoursoBank (si plusieurs identifiants sont liés au même numéro client)")
 parser.add_argument('--accounts-id',
                     '-a',
                     dest='accounts_id',
@@ -107,7 +112,6 @@ def validate_args() -> bool:
         return False
     elif args.password is None:
         logger.error("Le mot de passe doit être spécifié.")
-        return False
     elif not re.match(r"^\d+$", args.password):
         logger.error("Le mot de passe ne doit contenir que des chiffres.")
         return False
@@ -158,6 +162,9 @@ def main() -> None:
     # Connexion
     bb_exporter: BoursoBankExporter = BoursoBankExporter()
     bb_exporter.login(args.client_id, args.password)
+
+    if args.identifier is not None and args.identifier != "":
+        bb_exporter.select_identifier(args.identifier)
 
     # Export des opérations
     for account_id in accounts_id:

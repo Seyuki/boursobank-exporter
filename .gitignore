@@ -11,3 +11,6 @@ __pycache__/
 # Exports
 *.csv
 *.db
+
+# IDEs
+*.code-workspace
