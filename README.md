@@ -22,6 +22,7 @@ Ces informations peuvent être directement passées en argument du script (voir 
 BOURSOBANK_CLIENT_ID   = '12345678'
 BOURSOBANK_PASSWORD    = '87654321'
 BOURSOBANK_ACCOUNTS_ID = '111c22222b55555a11111c66666b8888'
+BOURSOBANK_IDENTIFIER  = ''
 LOG_PATH               = '/var/logs/boursobank-exporter'
 OUTPUT_TYPE            = 'csv,sqlite,postgresql'
 EXPORT_PATH            = '~/exports_boursobank'
@@ -35,6 +36,7 @@ POSTGRESQL_CONN_STRING = 'postgresql://user:password@localhost:5432/dbname'
 -   **BOURSOBANK_PASSWORD** : Mot de passe utilisé pour la connexion à l'espace client.
 -   **BOURSOBANK_ACCOUNTS_ID** : Identifiant des comptes qui contiennent les opérations à exporter.
     Plusieurs comptes peuvent être spécifiés, dans ce cas, ils doivent être séparés par une virgule.
+-   **BOURSOBANK_IDENTIFIER** : Identifiant du compte, si la connexion à l'espace client Bourso permet de gérer plusieurs comptes (par exemple un pro et un perso)
 -   **LOG_PATH** : Chemin vers le dossier qui contiendra le fichier de logs `boursobank_exporter.log`.
     Si le chemin est vide (ou la variable non définie), alors le fichier de log sera créé dans le répertoire courant.
 -   **OUTPUT_TYPE** : Type d'exports souhaité. Les valeurs possibles sont : `csv`, `sqlite` ou `postgresql`. Il est également possible de spécifier plusieurs types, en les séparant par une virgule, exemple : `csv,sqlite` pour obtenir des exports en csv et dans la base SQLite.
@@ -86,9 +88,8 @@ python .\src\boursobank_exporter_cli.py -h
 Qui retournera ceci :
 
 ```
-usage: boursobank_exporter_cli.py [-h] [--client-id CLIENT_ID] [--password PASSWORD] [--accounts-id ACCOUNTS_ID] [--export-directory EXPORT_PATH]
-                                  [--output OUTPUT_TYPE] [--sqlite-db DB_PATH] [--postgresql-uri POSTGRESQL_URI] [--no-logs] [--from FROM_DATE]
-                                  [--to TO_DATE]
+usage: boursobank_exporter_cli.py [-h] [--client-id CLIENT_ID] [--password PASSWORD] [--identifier IDENTIFIER] [--accounts-id ACCOUNTS_ID] [--export-directory EXPORT_PATH]
+                                  [--output OUTPUT_TYPE] [--sqlite-db DB_PATH] [--postgresql-uri POSTGRESQL_URI] [--no-logs] [--from FROM_DATE] [--to TO_DATE]
 
 options:
   -h, --help            show this help message and exit
@@ -96,6 +97,8 @@ options:
                         Numéro client BoursoBank
   --password PASSWORD, -p PASSWORD
                         Mot de passe BoursoBank
+  --identifier IDENTIFIER, -i IDENTIFIER
+                        Identifiant BoursoBank (si plusieurs identifiants sont liés au même numéro client)
   --accounts-id ACCOUNTS_ID, -a ACCOUNTS_ID
                         Numéros de comptes BoursoBank, séparés par des virgules
   --export-directory EXPORT_PATH, -d EXPORT_PATH
@@ -119,6 +122,7 @@ options:
 | ------------------ | ---------------------- | ------------------------ | -------------------------------------------------------------------------- |
 | --client-id        | BOURSOBANK_CLIENT_ID   | X                        |                                                                            |
 | --password         | BOURSOBANK_PASSWORD    | X                        |                                                                            |
+| --identifier       | BOURSOBANK_IDENTIFIER  |                          |                                                                            |
 | --accounts-id      | BOURSOBANK_ACCOUNTS_ID | X                        |                                                                            |
 | --export-directory | EXPORT_PATH            |                          | .\                                                                         |
 | --output           | OUTPUT_TYPE            |                          | csv                                                                        |
