@@ -119,6 +119,22 @@ class BoursoBankExporter:
             self.__is_logged = True
             self.__client_id = client
 
+    def select_identifier(self, identifier=str) -> None:
+        """Connexion à BoursoBank avec le identifier spécifiés.
+
+        Args:
+            identifier (str): Identifiant client.
+        """
+        logger.info("Connexion à BoursoBank for identifier")
+
+        # Connexion
+        response: requests.Response = self.__http_session.get(f"https://clients.boursobank.com/connexion/changer-identite/{identifier}")
+        
+        if response.status_code != 200:
+            logger.error("Erreur lors de la sélection de l'identifiant.")
+            return
+
+
 
     def __get_last_transaction_date(self, account_id: str, output_type: str, db: str) -> str:
         """Récupère la date de l'opération la plus récente pour le compte spécifiée dans la base de donnée spécifiée.
