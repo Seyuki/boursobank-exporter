@@ -119,13 +119,14 @@ class BoursoBankExporter:
             self.__is_logged = True
             self.__client_id = client
 
-    def select_identifier(self, identifier=str) -> None:
+
+    def select_identifier(self, identifier: str) -> None:
         """Connexion à BoursoBank avec le identifier spécifiés.
 
         Args:
             identifier (str): Identifiant client.
         """
-        logger.info("Connexion à BoursoBank for identifier")
+        logger.info("Redirection vers l'identifiant spécifié")
 
         # Connexion
         response: requests.Response = self.__http_session.get(f"https://clients.boursobank.com/connexion/changer-identite/{identifier}")
@@ -133,7 +134,6 @@ class BoursoBankExporter:
         if response.status_code != 200:
             logger.error("Erreur lors de la sélection de l'identifiant.")
             return
-
 
 
     def __get_last_transaction_date(self, account_id: str, output_type: str, db: str) -> str:
@@ -148,7 +148,7 @@ class BoursoBankExporter:
             str: Dernière date d'opération si elle existe, sinon None
         """
         if output_type == "sqlite":
-            # Vérification de l'existende de la db
+            # Vérification de l'existence de la db
             if not os.path.isfile(db):
                 return None
         
